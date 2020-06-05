@@ -34,7 +34,7 @@ setup(
     description="Log Scrambler for pihole",
     entry_points={
         'console_scripts': [
-            'datapope=pihole_datapope.cli:main',
+            'datapope=pihole_datapope.loader:datapope_cli',
         ],
     },
     install_requires=requirements,
