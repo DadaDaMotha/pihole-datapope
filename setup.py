@@ -34,7 +34,7 @@ setup(
     description="Log Scrambler for pihole",
     entry_points={
         'console_scripts': [
-            'pihole_datapope=pihole_datapope.cli:main',
+            'datapope=pihole_datapope.cli:main',
         ],
     },
     install_requires=requirements,
@@ -47,7 +47,7 @@ setup(
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
-    url='https://github.com/dadadamotha/pihole_datapope',
+    url='https://github.com/dadadamotha/pihole-datapope',
     version='0.1.0',
     zip_safe=False,
 )
