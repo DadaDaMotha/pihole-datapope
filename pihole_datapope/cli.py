@@ -1,3 +1,7 @@
+import sys
+from collections import namedtuple
+from inspect import signature
+
 import click
 
 
@@ -25,28 +29,54 @@ def note(msg, api=None, newline=True):
     click.secho(format_message(msg, api), nl=newline, fg='cyan')
 
 
-def listing(options):
-    if isinstance(options, list) or isinstance(options, tuple):
-        for i in options:
-            plain(f'-- {i}\n')
-    elif isinstance(options, dict):
-        for key, val in options.items():
-            plain(f'-- {key}:')
-            if isinstance(val, list) or isinstance(val, tuple):
-                for i in val:
-                    plain(f'---- {i}\n')
-            else:
-                plain(str(val))
-
-def server_title(name):
-    line_length = 30
-    c = 10
-    r = line_length - c - len(name) - len(' [] ')
-    note(f'{c * "-"} [{name}] {r * "-"}')
+Step = namedtuple('Step', ('name', 'func', 'exit_codes'))
 
 
-def adapter_title(name):
-    line_length = 30
-    c = 7
-    r = line_length - c - len(name) - len(' Interface  ')
-    info(f'{c * "-"} Interface {name} {r * "-"}')
+class StepHandlerRegistry(object):
+
+    def __init__(self):
+        # Here we see why we use python 3: dicts are ordered!
+        self.registry = []
+
+    @property
+    def registry_title(self):
+        raise NotImplementedError
+
+    def register(self, name, func, exit_codes=(0, )):
+        """Registers a step."""
+        assert name not in self.registry, "Can't register name twice"
+        assert 'dry_run' in signature(func).parameters, \
+            'Implement a dry_run flag in your step function'
+
+        self.registry.append(Step(name, func, exit_codes))
+
+    def registered_step(self, name, exit_codes=(0, )):
+        def wrapper(func):
+            self.register(name, func, exit_codes)
+            return func
+        return wrapper
+
+    @property
+    def total_steps(self):
+        return len(self.registry)
+
+    def print_result(self, step_num, msg, exit_code, exit_codes):
+        info(f'++ Step {step_num}/{self.total_steps}: ', newline=False)
+        plain(msg.upper().strip(), newline=False)
+        if isinstance(exit_code, int) in exit_codes:
+            info(' succeeded')
+        else:
+            warn(' failed')
+
+    def run(self, dry_run=False):
+        info(self.registry_title)
+        for ix, data in enumerate(self.registry):
+            name, func, exit_codes = data
+            exit_code = func(dry_run)
+            self.print_result(ix, name, exit_code, exit_codes)
+            if isinstance(exit_code, int) and exit_code not in exit_codes:
+                warn(f'Abort with exit code {exit_code}')
+                sys.exit(exit_code)
+
+
+
