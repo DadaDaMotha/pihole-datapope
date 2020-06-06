@@ -6,6 +6,11 @@ def fjoin(how, expressions):
     return f" {how} ".join(expressions).strip()
 
 
+def four_long(string):
+    assert len(string) <= 4
+    return string + (4 - len(string)) * " "
+
+
 def as_hex_bytes(string):
     return binascii.hexlify(string.encode('utf-8'))
 
@@ -15,7 +20,7 @@ def as_bytestring(method):
     Return the string used for tcp_http_filter:
     e.g. 'GET ' will be '0x47455420'
     """
-    return "0x" + str(int(as_hex_bytes(method)))
+    return "0" + str(as_hex_bytes(method)).upper().replace('B', 'x', 1).replace("'", "")
 
 
 def tcp_http_filter(methods=('GET',), in_ports=(80, 443), out_ports=()):
@@ -24,27 +29,37 @@ def tcp_http_filter(methods=('GET',), in_ports=(80, 443), out_ports=()):
     or outgoing traffic in `out_ports`
     """
 
-    method_lookup = 'tcp[((tcp[12:1] & 0xf0) >> 2):4]'
-    or_filters = []
+    assert methods
+    selector = 'tcp[((tcp[12:1] & 0xf0) >> 2):4]'
+    by_port_dst = []
 
     if all((in_ports, out_ports, in_ports == out_ports)):
-        or_filters += [f"tcp port {p}" for p in in_ports]
+        by_port_dst += [f"tcp port {p}" for p in in_ports]
     elif out_ports:
-        or_filters += [f"tcp src port {p}" for p in out_ports]
+        by_port_dst += [f"tcp src port {p}" for p in out_ports]
     elif in_ports:
-        or_filters += [f"tcp dst port {p}" for p in in_ports]
+        by_port_dst += [f"tcp dst port {p}" for p in in_ports]
 
-    method_f = [f"{method_lookup} = {as_bytestring(m)}" for m in methods]
+    by_request_type = [
+        f"{selector} = {as_bytestring(four_long(m))}" for m in methods
+    ]
 
     joined_filters = fjoin('and', [
-        fjoin('or', or_filters),
-        fjoin('or', method_f)
+        fjoin('or', by_port_dst),
+        fjoin('or', by_request_type)
     ])
 
     return f"-s 0 -A '{joined_filters}'"
 
 
-def stream_dump(iface, to_file=None, limit=None, incoming=(80, 443), outgoing=(80, 443)):
+def stream_dump(
+    iface,
+    to_file=None,
+    limit=None,
+    methods=('GET', ),
+    incoming=(80, 443),
+    outgoing=(80, 443)
+):
     """
 
     Dump all GET requests arriving on the interface.
@@ -59,7 +74,6 @@ def stream_dump(iface, to_file=None, limit=None, incoming=(80, 443), outgoing=(8
     """
     im = '--immediate-mode'
     options = [f'tcpdump -tttt -i {iface}']
-    ports = (80, 443)
     if not to_file:
         options.append('-l')
     else:
@@ -67,6 +81,6 @@ def stream_dump(iface, to_file=None, limit=None, incoming=(80, 443), outgoing=(8
     if limit:
         options.append(f' -c {limit}')
     options.append(
-        tcp_http_filter(in_ports=incoming, out_ports=outgoing)
+        tcp_http_filter(methods=methods, in_ports=incoming, out_ports=outgoing)
     )
     return " ".join(options)
