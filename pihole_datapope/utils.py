@@ -7,6 +7,12 @@ def url_parse(url):
     return parse.urlparse(url)
 
 
+def touch(fname):
+    if os.path.exists(fname):
+        os.utime(fname, None)
+    else:
+        open(fname, 'a').close()
+
 def ensure_packages(packages):
     missing = set(dep for dep in packages if not shutil.which(dep))
     if missing:

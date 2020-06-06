@@ -4,12 +4,7 @@ import tempfile
 
 import pytest
 
-
-def touch(fname):
-    if os.path.exists(fname):
-        os.utime(fname, None)
-    else:
-        open(fname, 'a').close()
+from pihole_datapope.utils import touch
 
 
 @pytest.fixture
