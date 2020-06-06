@@ -1,3 +1,4 @@
+import os
 import sys
 from collections import namedtuple
 from inspect import signature
@@ -49,6 +50,13 @@ class StepHandlerRegistry(object):
             'Implement a dry_run flag in your step function'
 
         self.registry.append(Step(name, func, exit_codes))
+
+    def register_cmd(self, name, cmd, exit_codes=(0, )):
+        def func(dry_run=False):
+            if not dry_run:
+                return os.system(cmd)
+            plain(f'Skipping: {cmd}')
+        self.registry.append(Step(name, func(), exit_codes))
 
     def registered_step(self, name, exit_codes=(0, )):
         def wrapper(func):
