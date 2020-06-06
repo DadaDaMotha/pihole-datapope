@@ -10,6 +10,7 @@ from click.testing import CliRunner
 from pihole_datapope.capture import stream_dump, tcp_http_filter
 from pihole_datapope.config import read_config
 from pihole_datapope.loader import datapope_cli
+from pihole_datapope.utils import is_in_file
 
 
 def test_tcp_http_filter():
@@ -20,10 +21,10 @@ def test_tcp_http_filter():
                 "tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x504F5354'"
 
 
-def test_temp():
-    cmd = stream_dump('eth0')
-    print(cmd)
-    assert False
+# def test_temp():
+#     cmd = stream_dump('eth0')
+#     print(cmd)
+#     assert False
 
 # def test_command_parse():
 #     """Test the CLI."""
@@ -35,9 +36,20 @@ def test_temp():
 #     assert help_result.exit_code == 0
 #     assert '--help' in help_result.output
 
-def test_ensure_in_file():
-    sample_file = textwrap.dedent("""
+def test_ensure_is_in_file(temp_file):
+    content = textwrap.dedent("""
         Bogus
+        config = 12
+
+        # Comment
+        [ Main ]
 
         config = 12
     """)
+    ensure_txt = textwrap.dedent("""
+        [ Main ]
+        config = 12
+    """)
+
+    fp = temp_file(content)
+    assert is_in_file(ensure_txt, fp)
