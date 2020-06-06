@@ -1,16 +1,21 @@
-import shutil
-
-# iface = 'eth0'
-dependencies = ('tcpdump',)
-GET_FILTER = "-s 0 -A 'tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x47455420'"
-POST_FILTER = "-s 0 -A 'tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x504F5354'"
-GET_INCOMING_443 = "-s 0 -A 'tcp dst port 443 and tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x47455420'"
-POST_INCOMING_443 = "-s 0 -A 'tcp dst port 443 and tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x504F5354'"
-# GET_INCOMING_80
+import binascii
+# good examples: https://www.middlewareinventory.com/blog/tcpdump-capture-http-get-post-requests-apache-weblogic-websphere/
 
 
 def fjoin(how, expressions):
     return f" {how} ".join(expressions).strip()
+
+
+def as_hex_bytes(string):
+    return binascii.hexlify(string.encode('utf-8'))
+
+
+def as_bytestring(method):
+    """
+    Return the string used for tcp_http_filter:
+    e.g. 'GET ' will be '0x47455420'
+    """
+    return "0x" + str(int(as_hex_bytes(method)))
 
 
 def tcp_http_filter(methods=('GET',), in_ports=(80, 443), out_ports=()):
@@ -18,10 +23,7 @@ def tcp_http_filter(methods=('GET',), in_ports=(80, 443), out_ports=()):
     based on request method, either incoming traffic on ports `in_ports`
     or outgoing traffic in `out_ports`
     """
-    to_bytes = dict(
-        GET='0x47455420',
-        POST='0x504F5354'
-    )
+
     method_lookup = 'tcp[((tcp[12:1] & 0xf0) >> 2):4]'
     or_filters = []
 
@@ -32,7 +34,7 @@ def tcp_http_filter(methods=('GET',), in_ports=(80, 443), out_ports=()):
     elif in_ports:
         or_filters += [f"tcp dst port {p}" for p in in_ports]
 
-    method_f = [f"{method_lookup} = {to_bytes[m]}" for m in methods]
+    method_f = [f"{method_lookup} = {as_bytestring(m)}" for m in methods]
 
     joined_filters = fjoin('and', [
         fjoin('or', or_filters),
@@ -64,7 +66,7 @@ def stream_dump(iface, to_file=None, limit=None, incoming=(80, 443), outgoing=(8
         options.append(f'-w {to_file}')
     if limit:
         options.append(f' -c {limit}')
-    filter = tcp_http_filter(in_ports=incoming, out_ports=outgoing)
-    options.append(filter)
+    options.append(
+        tcp_http_filter(in_ports=incoming, out_ports=outgoing)
+    )
     return " ".join(options)
-
