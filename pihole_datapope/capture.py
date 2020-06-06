@@ -9,6 +9,10 @@ POST_INCOMING_443 = "-s 0 -A 'tcp dst port 443 and tcp[((tcp[12:1] & 0xf0) >> 2)
 # GET_INCOMING_80
 
 
+def fjoin(how, expressions):
+    return f" {how} ".join(expressions).strip()
+
+
 def tcp_http_filter(methods=('GET',), in_ports=(80, 443), out_ports=()):
     """Constructs the filter expression for tcpdump to filter http traffic
     based on request method, either incoming traffic on ports `in_ports`
@@ -19,18 +23,23 @@ def tcp_http_filter(methods=('GET',), in_ports=(80, 443), out_ports=()):
         POST='0x504F5354'
     )
     method_lookup = 'tcp[((tcp[12:1] & 0xf0) >> 2):4]'
-    filters = []
-    if all((in_ports, out_ports, in_ports == out_ports)):
-        filters += [f"tcp port {p}" for p in in_ports]
-    elif out_ports:
-        filters += [f"tcp src port {p}" for p in out_ports]
-    elif in_ports:
-        filters += [f"tcp dst port {p}" for p in in_ports]
-    for method in methods:
-        filters.append(f"{method_lookup} = {to_bytes[method]}")
+    or_filters = []
 
-    all_filters = " and ".join(filters)
-    return f"-s 0 -A '{all_filters}'"
+    if all((in_ports, out_ports, in_ports == out_ports)):
+        or_filters += [f"tcp port {p}" for p in in_ports]
+    elif out_ports:
+        or_filters += [f"tcp src port {p}" for p in out_ports]
+    elif in_ports:
+        or_filters += [f"tcp dst port {p}" for p in in_ports]
+
+    method_f = [f"{method_lookup} = {to_bytes[m]}" for m in methods]
+
+    joined_filters = fjoin('and', [
+        fjoin('or', or_filters),
+        fjoin('or', method_f)
+    ])
+
+    return f"-s 0 -A '{joined_filters}'"
 
 
 def stream_dump(iface, to_file=None, limit=None, incoming=(80, 443), outgoing=(80, 443)):
