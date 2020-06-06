@@ -13,6 +13,12 @@ def touch(fname):
     else:
         open(fname, 'a').close()
 
+
+def backup_file(fp):
+    dir, fn = os.path.split(fp)
+    shutil.copy2(fp, os.path.join(dir, f"{fn}.popebak"))
+
+
 def ensure_packages(packages):
     missing = set(dep for dep in packages if not shutil.which(dep))
     if missing:
@@ -28,11 +34,31 @@ def append_to_file(file, text):
         f.write(text)
 
 
-def prepend_to_file(file, text):
-    with open(file, "r+") as f:
+def insert_in(filepath, text, after=True, at_occurrence=None, backup=True):
+    if backup:
+        backup_file(filepath)
+    with open(filepath, "r+") as f:
         s = f.read()
-        f.seek(0)
-        f.write(f"{text}\n" + s)
+        if not at_occurrence:
+            f.seek(0)
+            f.write(f"{text}\n" + s)
+        else:
+            raise NotImplementedError
+
+
+def add_to_file(file, content, prepend=False, at_occurrence=None):
+    """
+    Add content either to end or beginning of file.
+    If `at_occurrence_of` is specified, search line starting with that string,
+    else use fallback.
+    """
+    if at_occurrence:
+        pass
+
+    if prepend:
+        insert_in(file, content)
+    else:
+        append_to_file(file, content)
 
 
 def is_in_file(text, file):
@@ -57,3 +83,11 @@ def is_in_file(text, file):
             # matches the sequence
             return True
     return False
+
+
+def ensure_file_and_content(file, content, prepend=False):
+    if not os.path.exists(file):
+        touch(file)
+        append_to_file(file, content)
+    elif not is_in_file(content, file):
+        add_to_file(file, content, prepend)

@@ -61,12 +61,13 @@ class StepHandlerRegistry(object):
         return len(self.registry)
 
     def print_result(self, step_num, msg, exit_code, exit_codes):
-        info(f'++ Step {step_num}/{self.total_steps}: ', newline=False)
+        note(f'++ Step {step_num}/{self.total_steps}: ', newline=False)
         plain(msg.upper().strip(), newline=False)
         if isinstance(exit_code, int) in exit_codes:
             info(' succeeded')
         else:
-            warn(' failed')
+            fail(f' failed, exit with code {exit_code}')
+            sys.exit()
 
     def run(self, dry_run=False):
         info(self.registry_title)
@@ -74,9 +75,6 @@ class StepHandlerRegistry(object):
             name, func, exit_codes = data
             exit_code = func(dry_run)
             self.print_result(ix, name, exit_code, exit_codes)
-            if isinstance(exit_code, int) and exit_code not in exit_codes:
-                warn(f'Abort with exit code {exit_code}')
-                sys.exit(exit_code)
 
 
 
