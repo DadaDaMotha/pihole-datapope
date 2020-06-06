@@ -1,6 +1,6 @@
 import binascii
-# good examples: https://www.middlewareinventory.com/blog/tcpdump-capture-http-get-post-requests-apache-weblogic-websphere/
-
+# good examples:
+# https://www.middlewareinventory.com/blog/tcpdump-capture-http-get-post-requests-apache-weblogic-websphere/
 
 def fjoin(how, expressions):
     return f" {how} ".join(expressions).strip()
@@ -20,7 +20,8 @@ def as_bytestring(method):
     Return the string used for tcp_http_filter:
     e.g. 'GET ' will be '0x47455420'
     """
-    return "0" + str(as_hex_bytes(method)).upper().replace('B', 'x', 1).replace("'", "")
+    s = str(as_hex_bytes(method))
+    return "0" + s.upper().replace('B', 'x', 1).replace("'", "")
 
 
 def tcp_http_filter(methods=('GET',), in_ports=(80, 443), out_ports=()):
@@ -40,13 +41,13 @@ def tcp_http_filter(methods=('GET',), in_ports=(80, 443), out_ports=()):
     elif in_ports:
         by_port_dst += [f"tcp dst port {p}" for p in in_ports]
 
-    by_request_type = [
+    by_request_method = [
         f"{selector} = {as_bytestring(four_long(m))}" for m in methods
     ]
 
     joined_filters = fjoin('and', [
         fjoin('or', by_port_dst),
-        fjoin('or', by_request_type)
+        fjoin('or', by_request_method)
     ])
 
     return f"-s 0 -A '{joined_filters}'"
