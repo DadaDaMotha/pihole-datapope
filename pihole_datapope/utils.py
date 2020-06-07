@@ -35,7 +35,7 @@ def append_to_file(file, text):
         f.write(text)
 
 
-def insert_in(filepath, text, at_occurrence, match_line=False, prepend=False, max_times=1, backup=True):
+def insert_in(filepath, text, where, match_line=False, prepend=False, max_times=1, backup=True):
     """
     Insert content into a file at specific locations.
     Support only insert on new lines.
@@ -52,14 +52,14 @@ def insert_in(filepath, text, at_occurrence, match_line=False, prepend=False, ma
     new_lines = []
     found = 0
 
-    if isinstance(at_occurrence, str):
-        at_occurrence = re.compile(at_occurrence)
+    if isinstance(where, str):
+        where = re.compile(where)
 
-    re_search = at_occurrence.match if match_line else at_occurrence.search
+    re_search = where.match if match_line else where.search
 
     with open(filepath, "r") as f:
-        lines = f.readlines()
-    for ix, line in enumerate(lines):
+        lines = f.read().split('\n')
+    for line in lines:
         if not line.strip():
             new_lines.append(line)
             continue
@@ -71,7 +71,7 @@ def insert_in(filepath, text, at_occurrence, match_line=False, prepend=False, ma
             new_lines.append(line)
 
     if not found:
-        raise ValueError(f'{at_occurrence} not found in {filepath}')
+        raise ValueError(f'{where} not found in {filepath}')
 
     if backup:
         backup_file(filepath)

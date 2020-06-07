@@ -39,14 +39,25 @@ content = textwrap.dedent("""
     """)
 
 
-def test_insert_in(temp_file):
-    sample = textwrap.dedent("""
-    # A comment
-    interface   # first interface entry
-    important config
-    """)
-    fp = temp_file(sample)
-    insert_in(fp, 'new line', at_occurrence='interface', backup=False)
+@pytest.mark.parametrize('where,prepend', [
+    ('# Comment', False),
+    ('config = 12', True),
+])
+def test_insert_in(where, prepend, temp_file):
+    fp = temp_file(content)
+    insert_in(fp, 'XXX', where, match_line=True, prepend=prepend, backup=False)
+    with open(fp, 'r') as f:
+        text = f.read()
+
+    text_lines = text.split('\n')
+    where_ix = text_lines.index(where)
+    result_ix = text_lines.index('XXX')
+    print(text)
+
+    if prepend:
+        assert result_ix == where_ix - 1
+    else:
+        assert result_ix == where_ix + 1
 
 
 def test_is_in_file(temp_file):
@@ -56,8 +67,8 @@ def test_is_in_file(temp_file):
 
         config = 12
     """)
-    # assert re.search(ensure_txt, content)
     assert is_in_file(ensure_txt, fp)
+    assert not is_in_file("[ Main ]\nconfig = 12", fp)
 
 
 @pytest.mark.parametrize('method,out', [
