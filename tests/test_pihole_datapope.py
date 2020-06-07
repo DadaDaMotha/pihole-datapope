@@ -19,11 +19,6 @@ def test_tcp_http_filter():
                 "tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x504F5354'"
 
 
-# def test_temp():
-#     cmd = stream_dump('eth0')
-#     print(cmd)
-#     assert False
-
 # def test_command_parse():
 #     """Test the CLI."""
 #     runner = CliRunner()
@@ -44,20 +39,24 @@ content = textwrap.dedent("""
     """)
 
 
-# def test_insert_in(temp_file):
-#     fp = temp_file(content)
-#     match = insert_in(fp, 'bogus', at_occurrence='Config')
-#     assert match
+def test_insert_in(temp_file):
+    sample = textwrap.dedent("""
+    # A comment
+    interface   # first interface entry
+    important config
+    """)
+    fp = temp_file(sample)
+    insert_in(fp, 'new line', at_occurrence='interface', backup=False)
 
 
-def test_ensure_is_in_file(temp_file):
-
+def test_is_in_file(temp_file):
+    fp = temp_file(content)
     ensure_txt = textwrap.dedent("""
         [ Main ]
+
         config = 12
     """)
-
-    fp = temp_file(content)
+    # assert re.search(ensure_txt, content)
     assert is_in_file(ensure_txt, fp)
 
 
