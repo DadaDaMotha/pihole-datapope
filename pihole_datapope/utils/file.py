@@ -11,11 +11,15 @@ class MissingEditBlockException(Exception):
     pass
 
 
+def with_blocks(text):
+    return "\n".join((START_BLOCK, text, END_BLOCK))
+
+
 def block_wrapped(func):
-    def with_blocks(file, text, *args, **kwargs):
+    def wrapper(file, text, *args, **kwargs):
         return func(
-            file, "\n".join((START_BLOCK, text, END_BLOCK)), *args, **kwargs)
-    return with_blocks
+            file, with_blocks(text), *args, **kwargs)
+    return wrapper
 
 
 @block_wrapped
@@ -145,3 +149,50 @@ def touch(fname):
         os.utime(fname, None)
     else:
         open(fname, 'a').close()
+
+
+def replace_key_value(one_line, key, new_val, sep='='):
+    return re.sub(f'^({key}\s?{sep}\s?)(.*?)$', f"\\1{new_val}", one_line)
+
+
+def replace_in(file, pattern, replace, assert_blocks=True):
+    """ Using regex line by line.
+
+     Examples:
+         r'^(passw\s?=\s?)(\w)$', r'\1cde', 'passw = abc\nnhey'
+
+         file is:
+
+         `passw = abc` will be replaced with `passw = abc`
+
+     """
+    if not isinstance(pattern, re.Pattern):
+        raise ValueError('pattern must be of type re.Pattern')
+    with open(file, 'r') as f:
+        s = f.read()
+
+    inside_block = False
+    saw_a_block = False
+    new_lines = []
+
+    for line in s.split("\n"):
+        if assert_blocks:
+            inside_block = inside_block or line == START_BLOCK
+            if inside_block:
+                line = pattern.sub(replace, line)
+        else:
+            line = pattern.sub(replace, line)
+
+        new_lines.append(line)
+
+        if inside_block and line == END_BLOCK:
+            saw_a_block = True
+            inside_block = False
+
+    if saw_a_block and inside_block:
+        raise MissingEditBlockException('END_BLOCK is missing')
+    if not saw_a_block and assert_blocks:
+        raise MissingEditBlockException('No blocks found')
+
+    with open(file, 'w') as f:
+        f.write("\n".join(new_lines))

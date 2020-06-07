@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 """Tests for `pihole_datapope` package."""
+import re
 import textwrap
 
 import pytest
@@ -8,7 +9,8 @@ from click.testing import CliRunner
 
 from pihole_datapope.capture import tcp_http_filter, as_bytestring
 from pihole_datapope.utils.file import insert_in, containing, START_BLOCK, \
-    END_BLOCK
+    END_BLOCK, with_blocks, replace_key_value, replace_in, \
+    MissingEditBlockException
 
 
 def test_tcp_http_filter():
@@ -90,3 +92,42 @@ def test_is_in_file(temp_file):
 ])
 def test_as_bytestring(method, out):
     assert as_bytestring(method) == out
+
+
+@pytest.mark.parametrize('input,key,output', [
+    ('k_c = BB', 'k_c', 'k_c = XX'),
+    ('k_c=BB', 'k_c', 'k_c=XX'),
+    ('k_c=BB', 'k_', 'k_c=BB'),
+    ('\nk_c=BB', 'k_c', '\nk_c=BB'),
+    ('B=BB', 'B', 'B=XX'),
+    ('B=BB', 'B', 'B=XX'),
+    ('X=.?=*_$!^\\', 'X', 'X=XX')
+])
+def test_replace_key_value_pair(input, key, output):
+    assert replace_key_value(input, key, 'XX') == output
+
+
+@pytest.mark.parametrize('pattern,replace,output', [
+    (r'custom', 'custOM', with_blocks('custOM\n# \nkey: val')),
+    (r'(key: )([a-z]+)', r'\1PP', with_blocks('custom\n# \nkey: PP')),
+])
+def test_replace_in(pattern, replace, output, temp_file):
+    fp = temp_file(with_blocks('custom\n# \nkey: val'))
+    replace_in(fp, re.compile(pattern), replace, assert_blocks=False)
+    with open(fp, 'r') as f:
+        s = f.read()
+    assert s == output
+
+
+def test_replace_in_exceptions(temp_file):
+    fp = temp_file('»')
+    patt = re.compile('x')
+    with pytest.raises(ValueError):
+        replace_in(fp, 'x', 'y', assert_blocks=True)
+
+    with pytest.raises(MissingEditBlockException):
+        replace_in(fp, patt, 'y', assert_blocks=True)
+
+    fp = temp_file(START_BLOCK + "\ncorrupted")
+    with pytest.raises(MissingEditBlockException):
+        replace_in(fp, patt, 'y', assert_blocks=True)
