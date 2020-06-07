@@ -1,7 +1,7 @@
 from click.testing import CliRunner
 
 from pihole_datapope.commands.datapope.install_ap import install_ap
-from pihole_datapope.loader import datapope_cli
+
 
 class TestIntallAPCli:
 

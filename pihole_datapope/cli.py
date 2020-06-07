@@ -1,4 +1,3 @@
-import inspect
 import os
 import sys
 from collections import namedtuple
@@ -62,6 +61,10 @@ class StepHandlerRegistry(object):
         self.registry.append(Step(name, func, exit_codes))
 
     def register_cmd(self, cmd, name=None, exit_codes=(0, )):
+        """Register a simple command to execute with
+        cmd_handler. These commands are not expected to return system
+        output, but a status code.
+        """
         self.registry.append(Step(name or cmd, cmd, exit_codes))
 
     def registered_step(self, name, exit_codes=(0, )):
@@ -74,8 +77,8 @@ class StepHandlerRegistry(object):
     def total_steps(self):
         return len(self.registry)
 
-    def print_result(self, step_num, msg, exit_code, exit_codes, nl=True):
-        note(f'++ {step_num}/{self.total_steps}: '.upper(), newline=False)
+    def step_result(self, step_num, msg, exit_code, exit_codes, nl=True):
+        note(f'+ {step_num}/{self.total_steps}: '.upper(), newline=False)
         if isinstance(exit_code, int) and exit_code in exit_codes:
             info('[✔] succeeded ', newline=False)
         else:
@@ -102,25 +105,29 @@ class StepHandlerRegistry(object):
                         f'Do Step {ix}: {step.name}?')
                     if not wants:
                         continue
-                # use matched kwargs for the function
-                simple_cmd = not callable(step.func)
-                func_kwargs = self.bindable_kwargs(
-                    step.func, {**kwargs, 'dry_run': dry_run}
-                ) if not simple_cmd else {}
+                self._do_step(ix, step, dry_run, **kwargs)
 
-                if dry_run:
-                    msg = self.func_repr(step.func)
-                    self.print_result(ix, msg, 0, [0], nl=not func_kwargs)
-                    if func_kwargs:
-                        plain(f"; Params: {str(func_kwargs)}")
-                    continue
-                self.print_result(
-                    ix,
-                    step.name,
-                    self.cmd_handler(step.func) if simple_cmd
-                    else step.func(**func_kwargs),
-                    step.exit_codes
-                )
+    def _do_step(self, ix, step, dry_run, **kwargs):
+        # use matched kwargs for the function
+        simple_cmd = not callable(step.func)
+        func_kwargs = self.bindable_kwargs(
+            step.func, {**kwargs, 'dry_run': dry_run}
+        ) if not simple_cmd else {}
+
+        if dry_run:
+            msg = self.func_repr(step.func)
+            self.step_result(ix, msg, 0, [0], nl=not func_kwargs)
+            if func_kwargs:
+                plain(f"; Params: {str(func_kwargs)}")
+            return func_kwargs
+        self.step_result(
+            ix,
+            step.name,
+            self.cmd_handler(step.func) if simple_cmd
+            else step.func(**func_kwargs),
+            step.exit_codes
+        )
+        return func_kwargs
 
     def section_title(self, title):
         to_fill = self.tty_width - len(title.strip()) - 2
@@ -139,4 +146,9 @@ class StepHandlerRegistry(object):
 
     def repeat(self, number):
         step = self.registry[number]
-        self.print_result(number, step.name, step.func(), step.exit_codes)
+        self.step_result(number, step.name, step.func(), step.exit_codes)
+
+    def interactive_edit(self, string_or_file):
+        if os.path.isfile(string_or_file):
+            return click.edit(filename=string_or_file)
+        return click.edit(string_or_file)
