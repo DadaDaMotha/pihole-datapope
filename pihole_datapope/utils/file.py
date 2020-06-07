@@ -22,6 +22,11 @@ def block_wrapped(func):
     return wrapper
 
 
+def read_file(fp):
+    with open(fp, 'r') as f:
+        s = f.read()
+    return s
+
 @block_wrapped
 def prepend_to(file, text, backup=False):
     if backup:
@@ -176,18 +181,23 @@ def replace_in(file, pattern, replace, assert_blocks=True):
     new_lines = []
 
     for line in s.split("\n"):
-        if assert_blocks:
-            inside_block = inside_block or line == START_BLOCK
-            if inside_block:
-                line = pattern.sub(replace, line)
-        else:
-            line = pattern.sub(replace, line)
+        is_start_block = line == START_BLOCK
+        inside_block = inside_block or is_start_block
 
-        new_lines.append(line)
-
-        if inside_block and line == END_BLOCK:
+        if is_start_block:
             saw_a_block = True
+            new_lines.append(line)
+            continue
+
+        if line == END_BLOCK:
+            new_lines.append(line)
             inside_block = False
+            continue
+
+        if not assert_blocks or inside_block:
+            new_lines.append(pattern.sub(replace, line))
+        else:
+            new_lines.append(line)
 
     if saw_a_block and inside_block:
         raise MissingEditBlockException('END_BLOCK is missing')

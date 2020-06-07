@@ -5,12 +5,11 @@ import re
 import textwrap
 
 import pytest
-from click.testing import CliRunner
 
 from pihole_datapope.capture import tcp_http_filter, as_bytestring
 from pihole_datapope.utils.file import insert_in, containing, START_BLOCK, \
     END_BLOCK, with_blocks, replace_key_value, replace_in, \
-    MissingEditBlockException
+    MissingEditBlockException, read_file
 
 
 def test_tcp_http_filter():
@@ -20,15 +19,6 @@ def test_tcp_http_filter():
                 "tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x47455420 or " \
                 "tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x504F5354'"
 
-
-# def test_command_parse():
-#     """Test the CLI."""
-#     runner = CliRunner()
-#     result = runner.invoke(datapope_cli)
-#     assert result.exit_code == 0
-#     assert 'datapope is a log scrambler' in result.output
-#     help_result = runner.invoke(datapope_cli, ['--help'])
-#     assert help_result.exit_code == 0
 
 content = textwrap.dedent("""
         Bogus
@@ -48,8 +38,7 @@ content = textwrap.dedent("""
 def test_insert_in(where, prepend, temp_file):
     fp = temp_file(content)
     insert_in(fp, 'XXX', where, match_line=True, prepend=prepend, backup=False)
-    with open(fp, 'r') as f:
-        text = f.read()
+    text = read_file(fp)
 
     text_lines = text.split('\n')
     where_ix = text_lines.index(where)
@@ -115,9 +104,7 @@ def test_replace_key_value_pair(input, key, output):
 def test_replace_in(pattern, replace, output, blocks, temp_file):
     fp = temp_file(with_blocks('custom\n# \nkey: val'))
     replace_in(fp, re.compile(pattern), replace, assert_blocks=blocks)
-    with open(fp, 'r') as f:
-        s = f.read()
-    assert s == output
+    assert read_file(fp) == output
 
 
 def test_replace_in_exceptions(temp_file):
@@ -134,7 +121,7 @@ def test_replace_in_exceptions(temp_file):
         replace_in(fp, patt, 'y', assert_blocks=True)
 
 
-def test_replace_in_outside_blocks(temp_file):
+def test_replace_in_no_outside(temp_file):
     original = textwrap.dedent(f"""
     interface eth0
     {START_BLOCK}
@@ -144,6 +131,17 @@ def test_replace_in_outside_blocks(temp_file):
     fp = temp_file(original)
     pattern = re.compile(r'^(interface )(.*?)$')
     replace_in(fp, pattern, replace=r'\1wlan1', assert_blocks=True)
-    with open(fp, 'r') as f:
-        s = f.read()
-    assert s == original.replace('wlan0', 'wlan1')
+    assert read_file(fp) == original.replace('wlan0', 'wlan1')
+
+
+@pytest.mark.parametrize('block,assert_blocks', [
+    (START_BLOCK, True),
+    (END_BLOCK, True),
+    (START_BLOCK, False),
+    (END_BLOCK, False),
+])
+def test_replace_in_blocks(block, assert_blocks, temp_file):
+    original = with_blocks('content')
+    fp = temp_file(original)
+    replace_in(fp, re.compile(block), 'X', assert_blocks=assert_blocks)
+    assert read_file(fp) == original
