@@ -60,9 +60,9 @@ class StepHandlerRegistry(object):
         self.registry.append(Step(name, func, exit_codes))
 
     def register_cmd(self, cmd, name=None, exit_codes=(0, )):
-        def func():
-            return os.system(cmd)
-        self.registry.append(Step(name or cmd, func, exit_codes))
+        def os_system(command=cmd):
+            return os.system(command)
+        self.registry.append(Step(name or cmd, os_system, exit_codes))
 
     def registered_step(self, name, exit_codes=(0, )):
         def wrapper(func):
@@ -74,7 +74,7 @@ class StepHandlerRegistry(object):
     def total_steps(self):
         return len(self.registry)
 
-    def print_result(self, step_num, msg, exit_code, exit_codes):
+    def print_result(self, step_num, msg, exit_code, exit_codes, nl=True):
         note(f'++ {step_num}/{self.total_steps}: '.upper(), newline=False)
         if isinstance(exit_code, int) and exit_code in exit_codes:
             info('[✔] succeeded ', newline=False)
@@ -82,7 +82,7 @@ class StepHandlerRegistry(object):
             fail(f'[✘] failed, exit {exit_code} ', newline=False)
             plain(msg.strip())
             sys.exit()
-        plain(msg.strip())
+        plain(msg.strip(), newline=nl)
 
     def run(self, ask_each_step=False, dry_run=False, **kwargs):
         if not self.registry:
@@ -108,8 +108,9 @@ class StepHandlerRegistry(object):
                 )
                 if dry_run:
                     msg = self.func_repr(step.func)
-                    self.print_result(ix, msg, 0, [0])
-                    plain(f"Params: {str(func_kwargs)}")
+                    self.print_result(ix, msg, 0, [0], nl=not func_kwargs)
+                    if func_kwargs:
+                        plain(f"; Params: {str(func_kwargs)}")
                     continue
                 exit_code = step.func(**func_kwargs)
                 self.print_result(
