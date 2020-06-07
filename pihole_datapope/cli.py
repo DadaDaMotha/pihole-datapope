@@ -43,6 +43,8 @@ class StepHandlerRegistry(object):
     tty_width = 79
     fill_symbol = '-'
 
+    cmd_handler = os.system
+
     def __init__(self):
         # Here we see why we use python 3: dicts are ordered!
         self.registry = []
@@ -60,9 +62,7 @@ class StepHandlerRegistry(object):
         self.registry.append(Step(name, func, exit_codes))
 
     def register_cmd(self, cmd, name=None, exit_codes=(0, )):
-        def os_system(command=cmd):
-            return os.system(command)
-        self.registry.append(Step(name or cmd, os_system, exit_codes))
+        self.registry.append(Step(name or cmd, cmd, exit_codes))
 
     def registered_step(self, name, exit_codes=(0, )):
         def wrapper(func):
@@ -103,18 +103,23 @@ class StepHandlerRegistry(object):
                     if not wants:
                         continue
                 # use matched kwargs for the function
+                simple_cmd = not callable(step.func)
                 func_kwargs = self.bindable_kwargs(
                     step.func, {**kwargs, 'dry_run': dry_run}
-                )
+                ) if not simple_cmd else {}
+
                 if dry_run:
                     msg = self.func_repr(step.func)
                     self.print_result(ix, msg, 0, [0], nl=not func_kwargs)
                     if func_kwargs:
                         plain(f"; Params: {str(func_kwargs)}")
                     continue
-                exit_code = step.func(**func_kwargs)
                 self.print_result(
-                    ix, step.name, exit_code, step.exit_codes
+                    ix,
+                    step.name,
+                    self.cmd_handler(step.func) if simple_cmd
+                    else step.func(**func_kwargs),
+                    step.exit_codes
                 )
 
     def section_title(self, title):
@@ -127,6 +132,8 @@ class StepHandlerRegistry(object):
         return {n: dict_[n] for n in dict_ if n in signature(func).parameters}
 
     def func_repr(self, func):
+        if not callable(func):
+            return str(func)
         kwargs = [str(v) for v in signature(func).parameters.values()]
         return f"{funcn(func)}({', '.join(kwargs)})"
 
