@@ -1,13 +1,9 @@
-
 import click
-
-from pihole_datapope.cli import info, plain, warn
-from pihole_datapope.config import read_config
+from pihole_datapope.capture import stream_dump
 
 
 @click.command()
 def parse():
     """ Parse a logfile. """
-    config = read_config()
-    for k, v in config.items():
-        info(f"{k} - {v}")
+    cmd = stream_dump('br0', incoming=(80, 443), outgoing=None)
+    print(cmd)

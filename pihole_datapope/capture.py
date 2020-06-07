@@ -2,6 +2,7 @@ import binascii
 # good examples:
 # https://www.middlewareinventory.com/blog/tcpdump-capture-http-get-post-requests-apache-weblogic-websphere/
 
+
 def fjoin(how, expressions):
     return f" {how} ".join(expressions).strip()
 
@@ -73,7 +74,6 @@ def stream_dump(
         -c: limit dumps
         -s: snaplen, setting to 0 sets to default 262144
     """
-    im = '--immediate-mode'
     options = [f'tcpdump -tttt -i {iface}']
     if not to_file:
         options.append('-l')

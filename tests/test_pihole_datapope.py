@@ -7,8 +7,7 @@ import pytest
 from click.testing import CliRunner
 
 from pihole_datapope.capture import tcp_http_filter, as_bytestring
-
-from pihole_datapope.utils import is_in_file, insert_in
+from pihole_datapope.utils.file import insert_in, is_in_file
 
 
 def test_tcp_http_filter():

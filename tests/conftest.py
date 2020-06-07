@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 
-from pihole_datapope.utils import touch
+from pihole_datapope.utils.file import touch
 
 
 @pytest.fixture
