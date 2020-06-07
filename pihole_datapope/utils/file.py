@@ -160,7 +160,7 @@ def replace_key_value(one_line, key, new_val, sep='='):
     return re.sub(f'^({key}\s?{sep}\s?)(.*?)$', f"\\1{new_val}", one_line)
 
 
-def replace_in(file, pattern, replace, assert_blocks=True):
+def replace_in(file, pattern, replace, assert_blocks=True, ntimes=1, ltimes=None):
     """ Using regex line by line.
 
      Examples:
@@ -171,6 +171,9 @@ def replace_in(file, pattern, replace, assert_blocks=True):
          `passw = abc` will be replaced with `passw = abc`
 
      """
+    assert isinstance(ntimes, int)
+    if ntimes == 0:
+        return
     if not isinstance(pattern, re.Pattern):
         raise ValueError('pattern must be of type re.Pattern')
     with open(file, 'r') as f:
@@ -179,10 +182,15 @@ def replace_in(file, pattern, replace, assert_blocks=True):
     inside_block = False
     saw_a_block = False
     new_lines = []
+    times = 0
 
     for line in s.split("\n"):
         is_start_block = line == START_BLOCK
         inside_block = inside_block or is_start_block
+
+        if times == ntimes:
+            new_lines.append(line)
+            continue
 
         if is_start_block:
             saw_a_block = True
@@ -195,7 +203,11 @@ def replace_in(file, pattern, replace, assert_blocks=True):
             continue
 
         if not assert_blocks or inside_block:
-            new_lines.append(pattern.sub(replace, line))
+            newline = pattern.sub(
+                    replace, line, **{'count': ltimes} if ltimes else {})
+            if not newline == line:
+                times += 1
+            new_lines.append(newline)
         else:
             new_lines.append(line)
 

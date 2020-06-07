@@ -145,3 +145,26 @@ def test_replace_in_blocks(block, assert_blocks, temp_file):
     fp = temp_file(original)
     replace_in(fp, re.compile(block), 'X', assert_blocks=assert_blocks)
     assert read_file(fp) == original
+
+
+def test_replace_in_ntimes(temp_file):
+    original = textwrap.dedent(
+        """
+        alias BYE="/QUIT"
+        alias BYE="/QUITT"
+        alias BYE=
+        """)
+    fp = temp_file(original)
+    replace_in(
+        fp, re.compile(r'alias BYE=.*?$'), '', ntimes=2, assert_blocks=False)
+    content = read_file(fp)
+    assert content == "\n\n\nalias BYE=\n"
+
+
+def test_replace_in_ltimes(temp_file):
+    fp = temp_file('-up br -d br -t br')
+    pattern = re.compile('br')
+    replace_in(fp, pattern, 'X', ltimes=1, assert_blocks=False)
+    assert read_file(fp) == "-up X -d br -t br"
+    replace_in(fp, pattern, 'X', assert_blocks=False)
+    assert read_file(fp) == "-up X -d X -t X"

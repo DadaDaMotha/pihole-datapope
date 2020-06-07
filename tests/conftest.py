@@ -7,7 +7,7 @@ import pytest
 from pihole_datapope.utils.file import touch
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def temporary_directory():
     directory = tempfile.mkdtemp()
     yield directory
