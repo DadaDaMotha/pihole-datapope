@@ -1,5 +1,5 @@
-import os
 import shutil
+from itertools import tee
 from urllib import parse
 
 
@@ -15,3 +15,10 @@ def ensure_packages(packages):
 
 def funcn(func):
     return func.__code__.co_name
+
+
+def pairwise(iterable):
+    """s -> (s0,s1), (s1,s2), (s2, s3), ..."""
+    a, b = tee(iterable)
+    next(b, None)
+    return zip(a, b)
