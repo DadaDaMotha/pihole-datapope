@@ -7,7 +7,8 @@ import pytest
 from click.testing import CliRunner
 
 from pihole_datapope.capture import tcp_http_filter, as_bytestring
-from pihole_datapope.utils.file import insert_in, is_in_file
+from pihole_datapope.utils.file import insert_in, containing, START_BLOCK, \
+    END_BLOCK
 
 
 def test_tcp_http_filter():
@@ -51,12 +52,18 @@ def test_insert_in(where, prepend, temp_file):
     text_lines = text.split('\n')
     where_ix = text_lines.index(where)
     result_ix = text_lines.index('XXX')
+    start_ix = text_lines.index(START_BLOCK)
+    end_ix = text_lines.index(END_BLOCK)
     print(text)
 
     if prepend:
-        assert result_ix == where_ix - 1
+        assert end_ix == where_ix - 1
+        assert result_ix == where_ix - 2
+        assert start_ix == where_ix - 3
     else:
-        assert result_ix == where_ix + 1
+        assert start_ix == where_ix + 1
+        assert result_ix == where_ix + 2
+        assert end_ix == where_ix + 3
 
 
 def insert_in_failing(temp_file):
@@ -72,8 +79,8 @@ def test_is_in_file(temp_file):
 
         config = 12
     """)
-    assert is_in_file(ensure_txt, fp)
-    assert not is_in_file("[ Main ]\nconfig = 12", fp)
+    assert containing(fp, ensure_txt)
+    assert not containing(fp, "[ Main ]\nconfig = 12")
 
 
 @pytest.mark.parametrize('method,out', [
