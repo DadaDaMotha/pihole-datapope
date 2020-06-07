@@ -59,6 +59,12 @@ def test_insert_in(where, prepend, temp_file):
         assert result_ix == where_ix + 1
 
 
+def insert_in_failing(temp_file):
+    fp = temp_file('X')
+    with pytest.raises(ValueError):
+        insert_in(fp, '#', 'hello')
+
+
 def test_is_in_file(temp_file):
     fp = temp_file(content)
     ensure_txt = textwrap.dedent("""

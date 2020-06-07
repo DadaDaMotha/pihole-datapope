@@ -88,13 +88,17 @@ def is_in_file(text, file):
     return 0
 
 
-def ensure_file_and_content(file, content, prepend=False):
+def ensure_file_and_content(file, content, prepend=False, where=None):
     if not os.path.exists(file):
         touch(file)
         append_to_file(file, content)
     elif not is_in_file(content, file):
+        if where:
+            insert_in(file, content, prepend=prepend, where=where)
         if prepend:
             prepend_to_file(content, file)
+        else:
+            append_to_file(content, file)
 
 
 def backup_file(fp):
