@@ -107,13 +107,14 @@ def test_replace_key_value_pair(input, key, output):
     assert replace_key_value(input, key, 'XX') == output
 
 
-@pytest.mark.parametrize('pattern,replace,output', [
-    (r'custom', 'custOM', with_blocks('custOM\n# \nkey: val')),
-    (r'(key: )([a-z]+)', r'\1PP', with_blocks('custom\n# \nkey: PP')),
+@pytest.mark.parametrize('pattern,replace,output,blocks', [
+    (r'custom', 'custOM', with_blocks('custOM\n# \nkey: val'), False),
+    (r'(key: )([a-z]+)', r'\1PP', with_blocks('custom\n# \nkey: PP'), False),
+    (r'bb', r'xx', with_blocks('custom\n# \nkey: val'), True),
 ])
-def test_replace_in(pattern, replace, output, temp_file):
+def test_replace_in(pattern, replace, output, blocks, temp_file):
     fp = temp_file(with_blocks('custom\n# \nkey: val'))
-    replace_in(fp, re.compile(pattern), replace, assert_blocks=False)
+    replace_in(fp, re.compile(pattern), replace, assert_blocks=blocks)
     with open(fp, 'r') as f:
         s = f.read()
     assert s == output
@@ -131,3 +132,18 @@ def test_replace_in_exceptions(temp_file):
     fp = temp_file(START_BLOCK + "\ncorrupted")
     with pytest.raises(MissingEditBlockException):
         replace_in(fp, patt, 'y', assert_blocks=True)
+
+
+def test_replace_in_outside_blocks(temp_file):
+    original = textwrap.dedent(f"""
+    interface eth0
+    {START_BLOCK}
+    interface wlan0
+    {END_BLOCK}
+    """)
+    fp = temp_file(original)
+    pattern = re.compile(r'^(interface )(.*?)$')
+    replace_in(fp, pattern, replace=r'\1wlan1', assert_blocks=True)
+    with open(fp, 'r') as f:
+        s = f.read()
+    assert s == original.replace('wlan0', 'wlan1')
